@@ -9,33 +9,21 @@
 #include <kernel/kernel.h>
 #include <kernel/hal/hal.h>
 #include "../kernel_config.h"
-#include "listutils.h"
 
-static volatile struct kTaskStruct_t *kCurrentTask;
-static volatile struct kTaskStruct_t *kNextTask;
+kTaskHandle_t kCurrentTask;
+static kTaskHandle_t kNextTask;
 volatile uint64_t __e_time = 0;
 extern volatile uint16_t _kflags;
 static volatile uint8_t kInterruptDepth = 0;
 
-static volatile uint8_t kReservedMemory[CFG_KERNEL_RESERVED_MEMORY];
-static volatile kStackPtr_t kStackPointer = &kReservedMemory[CFG_KERNEL_RESERVED_MEMORY-1];
+extern volatile byte kReservedMemory[CFG_KERNEL_RESERVED_MEMORY];
+extern kStackPtr_t kStackPointer;
 
-static inline void taskmgr_switchTask();
 void taskmgr_schedule();
 void taskmgr_setActiveTicks(uint16_t activeTicks);
 void taskmgr_setKernelTicks(uint16_t activeTicks);
 
-inline void kernel_saveContext()
-{
-	platform_SAVE_CONTEXT();
-}
-
-inline void kernel_restoreContext()
-{
-	platform_RESTORE_CONTEXT();
-}
-
-static inline void kernel_switchContext()
+static void kernel_switchContext()
 {
 	#if CFG_ENABLE_MEMORY_PROTETCTION == 1
 		kernel_checkStackProtectionRegion(taskmgr_getCurrentTaskHandle());
@@ -78,57 +66,28 @@ void taskmgr_setKernelStackPointer(kStackPtr_t pointer)
 	kStackPointer = pointer;
 }
 
-static inline void taskmgr_switchTask()
+void taskmgr_switchTask()
 {	
 	taskmgr_schedule();
 	if (kNextTask != kCurrentTask) kernel_switchContext();
 }
 
-void taskmgr_yield(uint16_t sleep) 
+void taskmgr_sleep(kTaskTicks_t sleep)
 {
-	kernel_saveContext();
-	
 	taskmgr_setActiveTicks(0);
 	
 	if (sleep != 0) {
 		taskmgr_setTaskState(kCurrentTask, KSTATE_SLEEPING);
 		kCurrentTask -> sleepTime = sleep;
 	}
-	
-	taskmgr_switchTask();
-	kernel_restoreContext();
-	platform_RET();
-}
-
-void taskmgr_switchTo(kTaskHandle_t task)
-{
-	kernel_saveContext();
-	
-	if (task == NULL) {
-		kernel_restoreContext();
-		platform_RET();
-	}
-		
-	kNextTask = task;
-	if (kNextTask != kCurrentTask) kernel_switchContext();
-	
-	kernel_restoreContext();
-	platform_RET();
+	platform_yield();
 }
 
 void taskmgr_tick()
 {
-	kernel_saveContext();
-	
-	hal_SET_BIT(_kflags, KFLAG_TIMER_ISR);
-	
 	taskmgr_switchTask();
 	
 	kernel_timerService();
 	
 	__e_time++;
-	
-	hal_CLEAR_BIT(_kflags, KFLAG_TIMER_ISR);
-	kernel_restoreContext();
-	platform_RET();
 }

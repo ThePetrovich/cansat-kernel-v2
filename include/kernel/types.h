@@ -9,16 +9,11 @@
 #define TYPES_H_
 
 #include <stdint.h>
+#include <stddef.h>
+#include <kernel/platform/types.h>
 
-#define ERR_KRN_STACK_OVERFLOW 1
-#define ERR_NULLPTR 2
-#define ERR_MEMORY_CORRUPTION 3
-#define ERR_QUEUE_END 4
-#define ERR_WDT_RESET 5
-#define ERR_BOD_RESET 6
-#define ERR_KRN_RETURN 7
-#define ERR_DEVICE_FAIL 8
-#define ERR_GENERIC 255
+#define ERR_GENERIC -1
+#define ERR_NULLPTR -2
 
 #define KFLAG_INIT 0
 #define KFLAG_TIMER_SET 1
@@ -36,24 +31,9 @@
 #define KOSSTATUS_HALTED 2
 #define KOSSTATUS_ERRORED 3
 
-#ifndef _SIZE_T
-#define _SIZE_T
-typedef uint32_t size_t;
-#endif
-
-#include <stddef.h>
-
+typedef void kTask;
 typedef void (*kTask_t)(void*);
 typedef void (*kTimerISR_t)(void);
-typedef volatile uint8_t *kStackPtr_t;
-typedef uint16_t kStackSize_t;
-typedef int16_t kIterator_t;
-typedef uint8_t kRegister_t;
-typedef uint8_t kStatusRegister_t;
-typedef uint32_t kPointerValue_t;
-typedef void kTask;
-
-typedef uint8_t byte;
 
 typedef enum {KSTATE_UNINIT, KSTATE_SUSPENDED, KSTATE_SLEEPING, KSTATE_BLOCKED, KSTATE_READY, KSTATE_RUNNING} kTaskState_t;
 typedef enum {KEVENT_NONE, KEVENT_FIRED} kEventState_t;
@@ -95,8 +75,9 @@ struct kListItemStruct_t
 struct kLockStruct_t
 {
 	uint8_t lockCount;
-	kLockType_t type;
 	uint8_t basePriority;
+	kLockType_t type;
+	kTaskHandle_t lockOwner;
 	struct kLinkedListStruct_t blockedTasks;
 };
 
@@ -105,9 +86,9 @@ struct kIPCStruct_t
 	char* pointer;
 	size_t itemSize;
 	size_t size;
-	uint16_t inputPosition;
-	uint16_t outputPosition;
-	uint16_t currentPosition;
+	size_t inputPosition;
+	size_t outputPosition;
+	size_t currentPosition;
 };
 
 struct kEventStruct_t
@@ -124,13 +105,13 @@ struct kTaskStruct_t
 	kStackPtr_t stackBegin;
 	kStackSize_t stackSize;
 	volatile struct kLockStruct_t* lock;
-	volatile struct kEventStruct_t* notification;
+	volatile struct kEventStruct_t notification;
 	kTaskState_t state;
-	uint16_t sleepTime;
+	kTaskTicks_t sleepTime;
 	kTaskType_t type;
 	uint8_t priority;
 	uint8_t flags;
-	uint16_t pid;
+	kPid_t pid;
 	char* name;
 	struct kListItemStruct_t taskList;
 };

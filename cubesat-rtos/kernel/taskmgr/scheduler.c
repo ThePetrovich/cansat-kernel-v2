@@ -9,7 +9,7 @@
 #include "listutils.h"
 
 static volatile uint8_t kTickRate = 0;
-static volatile uint16_t kTaskActiveTicks = 0;
+static volatile kTaskTicks_t kTaskActiveTicks = 0;
 
 extern volatile uint16_t _kflags;
 
@@ -53,7 +53,7 @@ static inline void taskmgr_tickTasks()
 static inline void taskmgr_search()
 {
 	struct kLinkedListStruct_t* priorityQueues = taskmgr_getReadyTaskListArray();
-	for (int16_t i = CFG_NUMBER_OF_PRIORITIES-1; i >= 0; i--) {
+	for (kIterator_t i = CFG_NUMBER_OF_PRIORITIES-1; i >= 0; i--) {
 		if (priorityQueues[i].head != NULL) {
 			taskmgr_assign(priorityQueues[i].head);
 			kTaskHandle_t temp = priorityQueues[i].head;
@@ -69,15 +69,15 @@ void taskmgr_schedule()
 	if (!kTickRate) {
 		taskmgr_tickTasks();
 		kTickRate = CFG_TICKRATE_MS;
+		if (kTaskActiveTicks) {
+			kTaskActiveTicks--;
+		}
 	}
 	else {
 		kTickRate--;
 	}
 	
-	if (kTaskActiveTicks) {
-		kTaskActiveTicks--;
-	}
-	else {
+	if (!kTaskActiveTicks) {
 		if (utils_CHECK_BIT(_kflags, KFLAG_CSW_ALLOWED)) {
 			taskmgr_search();
 		}

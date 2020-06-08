@@ -9,10 +9,11 @@
 void user_preinit();
 void user_init();
 void user_postinit();
-void _debug_taskmgr_printTasks();
 
 kTask kernel_idle1(void* args)
 {
+	platform_ENABLE_INTERRUPTS();
+	threads_exitCriticalSection();
 	while(1) {
 		platform_NOP();
 		//debug_logMessage(PGM_PUTS, L_INFO, PSTR("idle: idle task debug output\r\n"));
@@ -24,7 +25,6 @@ void kernel_preinit()
 	hal_UART_INIT(24);
 	debug_init();
 	#if CFG_LOGGING == 1
-		//debug_puts(L_INFO, PSTR("\x0C"));
 		debug_puts(L_INFO, PSTR("kernel: Initializing debug uart interface, baud=38400\r\n"));
 		debug_puts(L_INFO, PSTR("kernel: Firing up RTOS\r\n"));
 		debug_puts(L_INFO, PSTR("kernel: Initializing memory manager\r\n"));
@@ -37,21 +37,8 @@ void kernel_preinit()
 	taskmgr_init(kernel_idle1);
 }
 
-uint8_t kernel_startScheduler()
+kReturnValue_t kernel_startScheduler()
 {
-	//debug_puts(L_INFO, PSTR(" kernel: Starting up task manager                      [OK]\r\n"));
-	//.................................................................
-
-	//#if CFG_LOGGING == 1
-	//	debug_puts(L_INFO, PSTR("kernel: Preparing safety memory barrier"));
-	//#endif
-
-	//kernel_prepareMemoryBarrier(kernel_getStackPtr() + (CFG_TASK_STACK_SIZE + CFG_KERNEL_STACK_SAFETY_MARGIN)-1, CFG_KERNEL_STACK_SAFETY_MARGIN, 0xFE);
-
-	//#if CFG_LOGGING == 1
-	//	debug_puts(L_NONE, PSTR("               [OK]\r\n"));
-	//#endif
-
 	#if CFG_LOGGING == 1
 		debug_puts(L_INFO, PSTR("kernel: Setting up system timer"));
 	#endif
@@ -68,33 +55,39 @@ uint8_t kernel_startScheduler()
 		debug_puts(L_NONE, PSTR("                      [OK]\r\n"));
 		debug_puts(L_INFO, PSTR("kernel: System startup complete\r\n"));
 	#endif
-	_debug_taskmgr_printTasks();
 
 	platform_DELAY_MS(1000);
-
-	debug_puts(L_INFO, PSTR("\x0C"));
-
-	platform_ENABLE_INTERRUPTS();
-	threads_exitCriticalSection();
 	
-	taskmgr_switchTo(taskmgr_getNextTaskHandle());
-
+	#if CFG_LOGGING == 1
+		debug_puts(L_INFO, PSTR("\x0C"));
+	#endif
+	
+	kernel_idle1(NULL);
 	return 0;
 }
 
 void kernel_startup()
 {
 	kernel_preinit();
-	debug_puts(L_INFO, PSTR("initd: Pre-init phase\r\n"));
+	#if CFG_LOGGING == 1
+		debug_puts(L_INFO, PSTR("initd: Pre-init phase\r\n"));
+	#endif
 	user_preinit();
-
-	debug_puts(L_INFO, PSTR("initd: Init phase\r\n"));
+	
+	#if CFG_LOGGING == 1
+		debug_puts(L_INFO, PSTR("initd: Init phase\r\n"));
+	#endif
 	user_init();
-
-	debug_puts(L_INFO, PSTR("initd: Post-init phase\r\n"));
+	
+	#if CFG_LOGGING == 1
+		debug_puts(L_INFO, PSTR("initd: Post-init phase\r\n"));
+	#endif
 	user_postinit();
-
-	debug_puts(L_INFO, PSTR("initd: Init complete, starting scheduler\r\n"));
+	
+	#if CFG_LOGGING == 1
+		debug_puts(L_INFO, PSTR("initd: Init complete, starting scheduler\r\n"));
+	#endif
+	
 	kernel_setSystemStatus(KOSSTATUS_RUNNING);
 	kernel_startScheduler();
 }
